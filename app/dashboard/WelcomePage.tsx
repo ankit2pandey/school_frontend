@@ -1,9 +1,24 @@
 "use client"
-import React from 'react'
 import Link from 'next/link'
 import Header from '../components/Header'
+import React, { useEffect, useState } from "react";
+
+
+ 
+
+
 
 const WelcomePage: React.FC = () => {
+   const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedId = localStorage.getItem("userId");
+    if (storedId) {
+      setUserId(storedId);
+    } else {
+      console.warn("No userId found in localStorage");
+    }
+  }, []);
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-teal-50 to-teal-100 text-gray-900">
       <Header variant="auth" />
@@ -15,7 +30,7 @@ const WelcomePage: React.FC = () => {
               Welcome to Lakeside High
             </h1>
             <p className="text-gray-600 text-sm">
-              School ID: <span className="font-medium text-gray-800">12345</span>
+              School ID: <span className="font-medium text-gray-800">{userId}</span>
             </p>
           </header>
 

@@ -1,4 +1,4 @@
-"use client"
+'use client'
 import React, { useState } from 'react'
 import Header from '../components/Header'
 import Link from 'next/link'
@@ -19,13 +19,42 @@ const SignupPage: React.FC = () => {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match!")
       return
     }
-    console.log('Signup attempt:', formData)
+
+    try {
+      const response = await fetch('http://localhost:4000/api/users/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        alert('User signed up successfully!')
+        setFormData({
+          username: '',
+          email: '',
+          password: '',
+          confirmPassword: ''
+        })
+      } else {
+        alert(`Signup failed: ${data.message || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Signup error:', err)
+      alert('Something went wrong while signing up.')
+    }
   }
 
   return (
