@@ -1,47 +1,131 @@
-"use client"
-import React from 'react'
-import WelcomePage from './WelcomePage'
+"use client";
+import React, { useEffect, useState } from "react";
+import WelcomePage from "./WelcomePage";
+import Link from "next/link";
 
 const DashboardPage: React.FC = () => {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [staffData, setStaffData] = useState<string[][]>([]);
+  const [schoolDetails, setSchoolDetails] = useState<any>(null);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+  const [loadingSchool, setLoadingSchool] = useState(true);
+
+  // Load school_id from localStorage
+  useEffect(() => {
+    const storedId = localStorage.getItem("userId");
+    if (storedId) {
+      setUserId(storedId);
+    } else {
+      console.warn("No userId found in localStorage");
+    }
+  }, []);
+
+  // Fetch staff data
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchStaff = async () => {
+      try {
+        const res = await fetch(`http://localhost:4000/api/admin/users/${userId}`);
+        const data = await res.json();
+        if (res.ok && data?.data) {
+          const formatted = data.data.map((user: any) => [
+            user.username,
+            user.designation,
+            "—", // Placeholder for department
+          ]);
+          setStaffData(formatted);
+        } else {
+          console.error("Failed to fetch staff:", data.message);
+        }
+      } catch (err) {
+        console.error("Error fetching staff:", err);
+      } finally {
+        setLoadingStaff(false);
+      }
+    };
+
+    fetchStaff();
+  }, [userId]);
+
+  // Fetch school details
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchSchoolDetails = async () => {
+      try {
+        const res = await fetch(`http://localhost:4000/api/school/${userId}`);
+        const data = await res.json();
+        if (res.ok) {
+          setSchoolDetails(data);
+        } else {
+          console.error("Failed to fetch school details:", data.message);
+        }
+      } catch (err) {
+        console.error("Error fetching school details:", err);
+      } finally {
+        setLoadingSchool(false);
+      }
+    };
+
+    fetchSchoolDetails();
+  }, [userId]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <WelcomePage />
 
       <div className="px-4 md:px-8 py-6">
         <div className="max-w-7xl mx-auto space-y-10">
-          
+          {/* School Info */}
           <section className="bg-white rounded-xl shadow-md p-6">
-            <header className="mb-4">
+            <header className="mb-4 flex items-center justify-between">
               <h1 className="text-3xl font-bold text-gray-800">📊 Dashboard</h1>
+              {schoolDetails?.logoUrl && (
+                <img src={schoolDetails.logoUrl} alt="School Logo" className="h-12 w-12 rounded-full object-cover" />
+              )}
             </header>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="bg-teal-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">School Name</p>
-                <p className="text-lg font-semibold text-teal-800">Evergreen High</p>
+            {loadingSchool ? (
+              <p className="text-gray-500">Loading school details...</p>
+            ) : schoolDetails ? (
+              <div className="grid gap-6 md:grid-cols-3">
+                <InfoCard label="School ID" value={schoolDetails.code || "—"} />
+                <InfoCard label="School Name" value={schoolDetails.name || "—"} />
+                <InfoCard label="Affiliation No." value={schoolDetails.affiliationNumber || "—"} />
+                <InfoCard label="Board" value={schoolDetails.board || "—"} />
+                <InfoCard label="Medium" value={schoolDetails.medium || "—"} />
+                <InfoCard label="Type" value={schoolDetails.schoolType || "—"} />
+                <InfoCard label="Established" value={schoolDetails.establishmentYear?.toString() || "—"} />
+                <InfoCard label="Phone" value={schoolDetails.contactPhone || "—"} />
+                <InfoCard label="Email" value={schoolDetails.contactEmail || "—"} />
+                <InfoCard label="Website" value={schoolDetails.website || "—"} />
+                <InfoCard
+                  label="Address"
+                  value={
+                    schoolDetails.address
+                      ? `${schoolDetails.address.street}, ${schoolDetails.address.city}, ${schoolDetails.address.state}, ${schoolDetails.address.country}`
+                      : "—"
+                  }
+                />
               </div>
-              <div className="bg-teal-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">Address</p>
-                <p className="text-lg font-semibold text-teal-800">123 Maple Street, Springfield</p>
-              </div>
-              <div className="bg-teal-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">Contact</p>
-                <p className="text-lg font-semibold text-teal-800">(555) 123-4567</p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-red-500">School details not found.</p>
+            )}
           </section>
 
           {/* Staff Management */}
           <SectionBlock title="👩‍🏫 Staff Management">
-            <DataTable
-              headers={["Name", "Role", "Department", "Actions"]}
-              rows={[
-                ["Dr. Emily Carter", "Principal", "Administration"],
-                ["Mr. David Lee", "Teacher", "Science"],
-                ["Ms. Sarah Jones", "Teacher", "Mathematics"],
-              ]}
-            />
-            <ActionButton label="Add Staff" />
+            {loadingStaff ? (
+              <p className="text-gray-500">Loading staff data...</p>
+            ) : staffData.length > 0 ? (
+              <DataTable headers={["Name", "Role", "Department", "Actions"]} rows={staffData} />
+            ) : (
+              <p className="text-gray-500">No staff found for this school.</p>
+            )}
+            <Link href="/add_uesr">
+              <ActionButton label="Add Admin User" />
+            </Link>
           </SectionBlock>
 
           {/* Course Management */}
@@ -57,8 +141,8 @@ const DashboardPage: React.FC = () => {
             <ActionButton label="Add Course" />
           </SectionBlock>
 
-          {/* Student Management */}
-          <SectionBlock title="🎓 Student Management">
+          {/* Teacher Management */}
+          <SectionBlock title="🎓 Teacher Management">
             <DataTable
               headers={["Name", "Grade", "Major", "Actions"]}
               rows={[
@@ -67,23 +151,25 @@ const DashboardPage: React.FC = () => {
                 ["Charlie Davis", "10", "History"],
               ]}
             />
-            <ActionButton label="Add Student" />
+            <Link href="/add_Teacher">
+              <ActionButton label="Add Teacher" />
+            </Link>
           </SectionBlock>
-
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default DashboardPage
+export default DashboardPage;
 
+// Reusable Components
 const SectionBlock = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="bg-white rounded-xl shadow-md p-6">
     <h2 className="text-xl font-bold text-gray-700 mb-4">{title}</h2>
     {children}
   </section>
-)
+);
 
 const DataTable = ({ headers, rows }: { headers: string[]; rows: string[][] }) => (
   <div className="overflow-x-auto">
@@ -109,7 +195,7 @@ const DataTable = ({ headers, rows }: { headers: string[]; rows: string[][] }) =
       </tbody>
     </table>
   </div>
-)
+);
 
 const ActionButton = ({ label }: { label: string }) => (
   <div className="mt-4">
@@ -117,4 +203,11 @@ const ActionButton = ({ label }: { label: string }) => (
       {label}
     </button>
   </div>
-)
+);
+
+const InfoCard = ({ label, value }: { label: string; value: string }) => (
+  <div className="bg-teal-50 rounded-lg p-4">
+    <p className="text-sm text-gray-500">{label}</p>
+    <p className="text-lg font-semibold text-teal-800 break-words">{value}</p>
+  </div>
+);
